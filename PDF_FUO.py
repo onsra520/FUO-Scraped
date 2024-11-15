@@ -51,7 +51,7 @@ class ScrapeRunning:
 
     def Login_Account(self):
         self.Driver.get(self.URLs)
-        time.sleep(2)
+        time.sleep(3)
         Login_Button = WebDriverWait(self.Driver, 1).until(
             EC.element_to_be_clickable(
                 (
@@ -61,7 +61,7 @@ class ScrapeRunning:
             )
         )
         Login_Button.click()
-        time.sleep(1)
+        time.sleep(5)
 
         Input_Username = self.Driver.find_element(By.NAME, "login")
         Input_Password = self.Driver.find_element(By.NAME, "password")
@@ -108,10 +108,10 @@ class ScrapeRunning:
             print(f"Lỗi khi lưu ảnh {Img_Name}: {e}")
 
     def Scrape_Image(self):
-        self.Driver.set_window_size(1280, 720)
-        time.sleep(5)
+        self.Driver.set_window_size(1920, 1080)
+        time.sleep(10)
         self.Login_Account()
-        time.sleep(1)
+        time.sleep(3)
 
         Img_URLs = self.Get_Img_URLs()
 
@@ -125,8 +125,6 @@ class ScrapeRunning:
             self.Driver.switch_to.window(self.Driver.window_handles[-1])
 
             try:
-                # Img_Tag = self.Driver.find_element(By.CSS_SELECTOR, "img")
-                # Img_URL = Img_Tag.get_attribute("src")
                 Img_Name = f"{self.Question}.jpg"
 
                 Screenshot_Path = os.path.join(self.Folder_Path, Img_Name)
