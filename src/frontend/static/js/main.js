@@ -217,13 +217,34 @@ async function checkScrapingProgress() {
     }
 }
 
-// Update progress bar
+// Update progress bar with segments
 function updateProgress(current, total) {
-    const progressBar = document.querySelector('.progress-fill');
+    const progressBar = document.querySelector('.progress-bar');
     const progressText = document.querySelector('.progress-text');
     
+    // Create segments if not already created
+    if (!progressBar.querySelector('.progress-segment')) {
+        progressBar.innerHTML = '';
+        for (let i = 0; i < total; i++) {
+            const segment = document.createElement('div');
+            segment.className = 'progress-segment';
+            segment.dataset.index = i;
+            progressBar.appendChild(segment);
+        }
+    }
+    
+    // Update segments
+    const segments = progressBar.querySelectorAll('.progress-segment');
+    segments.forEach((segment, index) => {
+        segment.classList.remove('completed', 'current');
+        if (index < current) {
+            segment.classList.add('completed');
+        } else if (index === current) {
+            segment.classList.add('current');
+        }
+    });
+    
     const percentage = total > 0 ? Math.round((current / total) * 100) : 0;
-    progressBar.style.width = percentage + '%';
     progressText.textContent = `${current} / ${total} (${percentage}%)`;
 }
 

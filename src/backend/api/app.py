@@ -7,12 +7,11 @@ from fastapi.responses import FileResponse, JSONResponse
 from fastapi.requests import Request
 from pydantic import BaseModel
 from dotenv import load_dotenv
-from typing import Optional, Dict
-import asyncio
+from typing import Dict
 from concurrent.futures import ThreadPoolExecutor
 
 from scraper.fuo_scraper import FUOScraper
-from database import db
+from database.database import db
 
 # Load environment variables
 load_dotenv()
@@ -312,6 +311,7 @@ def run_scraper(
         if result["success"]:
             scraping_tasks[task_id]["status"] = "completed"
             scraping_tasks[task_id]["result"] = result
+            scraping_tasks[task_id]["progress"] = result.get("total", 0)
         else:
             scraping_tasks[task_id]["status"] = "error"
             scraping_tasks[task_id]["error"] = result.get("error", "Unknown error")
@@ -324,8 +324,9 @@ def run_scraper(
 @app.get("/favicon.ico")
 async def favicon():
     """Return favicon or 204 No Content to avoid 404 errors."""
+    from fastapi.responses import Response
     # Return empty response with 204 status (no favicon configured)
-    return JSONResponse(content={}, status_code=204)
+    return Response(status_code=204)
 
 
 if __name__ == "__main__":

@@ -50,9 +50,11 @@
             </div>
             
             <div class="viewer-right-controls">
-                <button id="viewerSettingsBtn" class="control-btn settings-btn" onclick="openViewerSettings()">
+                <button id="fullscreenBtn" class="icon-btn fullscreen-btn" onclick="toggleFullscreen()" title="Fullscreen">
+                    <i class="fas fa-expand"></i>
+                </button>
+                <button id="viewerSettingsBtn" class="icon-btn settings-btn" onclick="openViewerSettings()" title="Settings">
                     <i class="fas fa-cog"></i>
-                    <span>Settings</span>
                 </button>
             </div>
         </div>
@@ -86,6 +88,23 @@
             </a>
         </div>
     </main>
+
+    <!-- Fullscreen Image Overlay -->
+    <div id="fullscreenOverlay" class="fullscreen-overlay" style="display: none;">
+        <button class="fullscreen-close" onclick="closeImageFullscreen()">
+            <i class="fas fa-times"></i>
+        </button>
+        <button class="fullscreen-nav fullscreen-prev" onclick="fullscreenPrevImage()">
+            <i class="fas fa-chevron-left"></i>
+        </button>
+        <button class="fullscreen-nav fullscreen-next" onclick="fullscreenNextImage()">
+            <i class="fas fa-chevron-right"></i>
+        </button>
+        <div id="fullscreenContent" class="fullscreen-content">
+            <img id="fullscreenImage" src="" alt="Fullscreen Image">
+        </div>
+        <div class="fullscreen-counter" id="fullscreenCounter">1 / 1</div>
+    </div>
 
     <!-- Viewer Settings Modal -->
     <div id="viewerSettingsModal" class="modal" style="display: none;">
@@ -136,16 +155,6 @@
                             </div>
                         </div>
                         
-                        <div class="layout-option" data-layout="pdf">
-                            <div class="layout-preview">
-                                <i class="fas fa-file-pdf"></i>
-                            </div>
-                            <div class="layout-info">
-                                <strong>PDF View</strong>
-                                <small>Xem dạng PDF</small>
-                            </div>
-                        </div>
-                        
                         <div class="layout-option" data-layout="slideshow">
                             <div class="layout-preview">
                                 <i class="fas fa-play-circle"></i>
@@ -189,6 +198,6 @@
         const courseCode = "{{ course_code }}";
         const threadName = "{{ thread_name }}";
     </script>
-    <script src="/static/js/viewer.js"></script>
+    <script src="/static/js/viewer.js?v=5.0"></script>
 </body>
 </html>

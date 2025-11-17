@@ -27,14 +27,20 @@ function switchLayoutMode(layout) {
     // Stop slideshow if active
     stopSlideshow();
     
-    // Reset classes
+    // Reset classes and clear container
     imagesView.className = 'images-view';
+    imageContainer.innerHTML = '';
     
     switch (layout) {
         case 'one-by-one':
             imagesView.style.display = 'block';
             pdfView.style.display = 'none';
             viewerCenter.style.display = 'flex';
+            // Re-create single image element for one-by-one mode
+            const img = document.createElement('img');
+            img.id = 'currentImage';
+            img.alt = 'Current Image';
+            imageContainer.appendChild(img);
             showImage(currentIndex);
             break;
             
@@ -54,17 +60,15 @@ function switchLayoutMode(layout) {
             showAllImagesGrid();
             break;
             
-        case 'pdf':
-            imagesView.style.display = 'none';
-            pdfView.style.display = 'block';
-            viewerCenter.style.display = 'none';
-            loadPDF();
-            break;
-            
         case 'slideshow':
             imagesView.style.display = 'block';
             pdfView.style.display = 'none';
             viewerCenter.style.display = 'flex';
+            // Re-create single image element for slideshow mode
+            const slideshowImg = document.createElement('img');
+            slideshowImg.id = 'currentImage';
+            slideshowImg.alt = 'Current Image';
+            imageContainer.appendChild(slideshowImg);
             startSlideshow();
             break;
             
@@ -144,6 +148,12 @@ function setupNavigation() {
     
     // Keyboard navigation
     document.addEventListener('keydown', (e) => {
+        // Don't handle if fullscreen is open
+        const overlay = document.getElementById('fullscreenOverlay');
+        if (overlay && overlay.style.display === 'flex') {
+            return;
+        }
+        
         if (currentMode === 'images') {
             if (e.key === 'ArrowLeft') {
                 previousImage();
@@ -385,5 +395,191 @@ window.addEventListener('click', (e) => {
     const modal = document.getElementById('viewerSettingsModal');
     if (e.target === modal) {
         closeViewerSettings();
+    }
+});
+
+// Image Fullscreen functionality
+function toggleFullscreen() {
+    const overlay = document.getElementById('fullscreenOverlay');
+    const fullscreenContent = document.getElementById('fullscreenContent');
+    const fullscreenImg = document.getElementById('fullscreenImage');
+    const prevBtn = document.querySelector('.fullscreen-prev');
+    const nextBtn = document.querySelector('.fullscreen-next');
+    const counter = document.getElementById('fullscreenCounter');
+    
+    // Check current layout mode
+    if (currentLayout === 'scroll' || currentLayout === 'grid') {
+        // Scroll/Grid mode: Show all images vertically
+        openFullscreenScrollMode(overlay, fullscreenContent, prevBtn, nextBtn, counter);
+    } else {
+        // One-by-one, slideshow, compare mode: Show single image with navigation
+        openFullscreenSingleMode(overlay, fullscreenContent, prevBtn, nextBtn, counter);
+    }
+}
+
+// Open fullscreen in scroll mode (show all images)
+function openFullscreenScrollMode(overlay, fullscreenContent, prevBtn, nextBtn, counter) {
+    // Hide overlay first to prevent visual glitches
+    overlay.style.display = 'none';
+    
+    // Clear and setup container
+    fullscreenContent.className = 'fullscreen-content fullscreen-scroll';
+    fullscreenContent.innerHTML = '';
+    fullscreenContent.style.overflow = 'hidden'; // Temporarily disable scroll
+    
+    // Create wrapper div that will hold all images
+    const scrollContainer = document.createElement('div');
+    scrollContainer.style.width = '100%';
+    scrollContainer.style.display = 'flex';
+    scrollContainer.style.flexDirection = 'column';
+    scrollContainer.style.alignItems = 'center';
+    scrollContainer.style.gap = '20px';
+    scrollContainer.style.paddingTop = '100px';
+    scrollContainer.style.paddingBottom = '40px';
+    
+    // Add all images to the wrapper
+    images.forEach((imgSrc, index) => {
+        const img = document.createElement('img');
+        img.src = imgSrc;
+        img.alt = `Image ${index + 1}`;
+        img.className = 'fullscreen-scroll-image';
+        scrollContainer.appendChild(img);
+    });
+    
+    // Add wrapper to content
+    fullscreenContent.appendChild(scrollContainer);
+    
+    // Hide navigation buttons and counter for scroll mode
+    prevBtn.style.display = 'none';
+    nextBtn.style.display = 'none';
+    counter.style.display = 'none';
+    
+    // Now show overlay and enable scrolling
+    overlay.style.display = 'flex';
+    
+    // Use setTimeout to ensure DOM is fully rendered before enabling scroll
+    setTimeout(() => {
+        fullscreenContent.style.overflow = ''; // Re-enable scroll
+        fullscreenContent.scrollTop = 0; // Scroll to top
+        
+        // Double-check scroll position after a short delay
+        setTimeout(() => {
+            fullscreenContent.scrollTop = 0;
+        }, 50);
+    }, 0);
+}
+
+// Open fullscreen in single image mode
+function openFullscreenSingleMode(overlay, fullscreenContent, prevBtn, nextBtn, counter) {
+    // Setup for single image display
+    fullscreenContent.className = 'fullscreen-content fullscreen-single';
+    fullscreenContent.innerHTML = '';
+    
+    const img = document.createElement('img');
+    img.id = 'fullscreenImage';
+    img.src = images[currentIndex];
+    img.alt = 'Fullscreen Image';
+    fullscreenContent.appendChild(img);
+    
+    // Show navigation buttons and counter
+    prevBtn.style.display = 'flex';
+    nextBtn.style.display = 'flex';
+    counter.style.display = 'block';
+    updateFullscreenCounter();
+    updateFullscreenNavButtons();
+    
+    // Show overlay
+    overlay.style.display = 'flex';
+}
+
+function closeImageFullscreen() {
+    const overlay = document.getElementById('fullscreenOverlay');
+    overlay.style.display = 'none';
+}
+
+function fullscreenPrevImage() {
+    if (currentIndex > 0) {
+        currentIndex--;
+        const fullscreenImg = document.getElementById('fullscreenImage');
+        fullscreenImg.src = images[currentIndex];
+        updateFullscreenCounter();
+        updateFullscreenNavButtons();
+        
+        // Also update main viewer
+        if (currentLayout === 'one-by-one' || currentLayout === 'slideshow') {
+            const currentImg = document.getElementById('currentImage');
+            if (currentImg) {
+                currentImg.src = images[currentIndex];
+            }
+            updateCounter();
+            updateNavigationButtons();
+        }
+    }
+}
+
+function fullscreenNextImage() {
+    if (currentIndex < images.length - 1) {
+        currentIndex++;
+        const fullscreenImg = document.getElementById('fullscreenImage');
+        fullscreenImg.src = images[currentIndex];
+        updateFullscreenCounter();
+        updateFullscreenNavButtons();
+        
+        // Also update main viewer
+        if (currentLayout === 'one-by-one' || currentLayout === 'slideshow') {
+            const currentImg = document.getElementById('currentImage');
+            if (currentImg) {
+                currentImg.src = images[currentIndex];
+            }
+            updateCounter();
+            updateNavigationButtons();
+        }
+    }
+}
+
+function updateFullscreenCounter() {
+    const counter = document.getElementById('fullscreenCounter');
+    if (counter) {
+        counter.textContent = `${currentIndex + 1} / ${images.length}`;
+    }
+}
+
+function updateFullscreenNavButtons() {
+    const prevBtn = document.querySelector('.fullscreen-prev');
+    const nextBtn = document.querySelector('.fullscreen-next');
+    
+    if (prevBtn) {
+        prevBtn.style.display = 'flex';
+        if (currentIndex === 0) {
+            prevBtn.style.opacity = '0.3';
+            prevBtn.style.cursor = 'not-allowed';
+        } else {
+            prevBtn.style.opacity = '1';
+            prevBtn.style.cursor = 'pointer';
+        }
+    }
+    if (nextBtn) {
+        nextBtn.style.display = 'flex';
+        if (currentIndex === images.length - 1) {
+            nextBtn.style.opacity = '0.3';
+            nextBtn.style.cursor = 'not-allowed';
+        } else {
+            nextBtn.style.opacity = '1';
+            nextBtn.style.cursor = 'pointer';
+        }
+    }
+}
+
+// Close fullscreen with ESC key
+document.addEventListener('keydown', (e) => {
+    const overlay = document.getElementById('fullscreenOverlay');
+    if (overlay && overlay.style.display === 'flex') {
+        if (e.key === 'Escape') {
+            closeImageFullscreen();
+        } else if (e.key === 'ArrowLeft') {
+            fullscreenPrevImage();
+        } else if (e.key === 'ArrowRight') {
+            fullscreenNextImage();
+        }
     }
 });
