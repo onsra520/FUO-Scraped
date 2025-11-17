@@ -185,6 +185,62 @@
                         <input type="number" id="slideshowInterval" class="setting-input" min="1" max="10" value="3">
                     </div>
                 </div>
+                
+                <div class="settings-section">
+                    <h4 class="settings-section-title" style="color: var(--error);">
+                        <i class="fas fa-trash-alt"></i>
+                        Danger Zone
+                    </h4>
+                    <div class="modal-setting-item" style="background: rgba(255, 69, 58, 0.1); border: 1px solid var(--error);">
+                        <div class="setting-label">
+                            <strong style="color: var(--error);">Delete Thread</strong>
+                            <small>Permanently delete all images and PDF for this thread</small>
+                        </div>
+                        <button onclick="deleteThread()" class="delete-thread-btn" style="background: var(--error); color: white; padding: 8px 16px; border: none; border-radius: 6px; cursor: pointer; font-weight: 600;">
+                            <i class="fas fa-trash"></i> Delete
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Delete Confirmation Modal -->
+    <div id="deleteConfirmModal" class="modal" style="display: none;">
+        <div class="modal-content" style="max-width: 500px;">
+            <div class="modal-header">
+                <h3 style="color: var(--error);">
+                    <i class="fas fa-exclamation-triangle"></i>
+                    Confirm Delete
+                </h3>
+                <button class="modal-close" onclick="closeDeleteConfirm()">
+                    <i class="fas fa-times"></i>
+                </button>
+            </div>
+            <div class="modal-body">
+                <p style="margin-bottom: 20px; font-size: 16px;">
+                    Are you sure you want to delete <strong id="deleteThreadName"></strong>?
+                </p>
+                <p style="color: var(--error); margin-bottom: 20px;">
+                    <i class="fas fa-exclamation-circle"></i>
+                    This will permanently delete:
+                </p>
+                <ul style="margin-bottom: 20px; padding-left: 20px;">
+                    <li>All images in the folder</li>
+                    <li>PDF file</li>
+                    <li>Database record</li>
+                </ul>
+                <p style="color: var(--text-secondary); font-style: italic;">
+                    This action cannot be undone!
+                </p>
+                <div style="display: flex; gap: 12px; margin-top: 24px;">
+                    <button onclick="closeDeleteConfirm()" style="flex: 1; padding: 12px; background: var(--bg-tertiary); border: none; border-radius: 8px; cursor: pointer; font-weight: 600;">
+                        Cancel
+                    </button>
+                    <button onclick="confirmDelete()" style="flex: 1; padding: 12px; background: var(--error); color: white; border: none; border-radius: 8px; cursor: pointer; font-weight: 600;">
+                        <i class="fas fa-trash"></i> Delete Forever
+                    </button>
+                </div>
             </div>
         </div>
     </div>
@@ -192,6 +248,57 @@
     <script>
         const courseCode = "{{ course_code }}";
         const threadName = "{{ thread_name }}";
+        
+        function deleteThread() {
+            document.getElementById('deleteThreadName').textContent = threadName;
+            document.getElementById('deleteConfirmModal').style.display = 'flex';
+        }
+        
+        function closeDeleteConfirm() {
+            document.getElementById('deleteConfirmModal').style.display = 'none';
+        }
+        
+        async function confirmDelete() {
+            try {
+                const response = await fetch('/api/thread/delete', {
+                    method: 'DELETE',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({
+                        course_code: courseCode,
+                        thread_name: threadName
+                    })
+                });
+                
+                const data = await response.json();
+                
+                if (response.ok && data.success) {
+                    alert('Thread deleted successfully!');
+                    window.location.href = '/';
+                } else if (data.deleted && data.deleted.length > 0) {
+                    // Partial deletion - redirect anyway
+                    alert('Partial deletion completed. Deleted: ' + data.deleted.join(', ') + '\n\nPlease close this page and manually delete the images folder if it still exists.');
+                    window.location.href = '/';
+                } else {
+                    alert('Error: ' + (data.error || 'Failed to delete thread'));
+                    // Still redirect to home
+                    window.location.href = '/';
+                }
+            } catch (error) {
+                alert('Error: ' + error.message);
+                // Redirect anyway
+                window.location.href = '/';
+            }
+        }
+        
+        // Close modals on outside click
+        window.addEventListener('click', (e) => {
+            const deleteModal = document.getElementById('deleteConfirmModal');
+            if (e.target === deleteModal) {
+                closeDeleteConfirm();
+            }
+        });
     </script>
     <script src="/static/js/viewer.js?v=5.0"></script>
 </body>

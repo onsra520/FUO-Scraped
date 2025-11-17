@@ -1,5 +1,6 @@
 """FastAPI server for FUO Scraper application."""
 import os
+import shutil
 from fastapi import FastAPI, HTTPException, BackgroundTasks
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
@@ -43,6 +44,8 @@ async def startup_event():
 class ScrapeRequest(BaseModel):
     url: str
     headless: bool = False
+    all_in_one: bool = False
+    batch_size: int = 10
     item_delay: int = 2
     page_load_timeout: int = 10
     element_timeout: int = 10
@@ -50,6 +53,11 @@ class ScrapeRequest(BaseModel):
 
 class SearchRequest(BaseModel):
     query: str
+
+
+class DeleteThreadRequest(BaseModel):
+    course_code: str
+    thread_name: str
 
 
 @app.get("/")
@@ -204,6 +212,8 @@ async def start_scrape(
         task_id,
         url,
         scrape_request.headless,
+        scrape_request.all_in_one,
+        scrape_request.batch_size,
         scrape_request.item_delay,
         scrape_request.page_load_timeout,
         scrape_request.element_timeout
@@ -279,6 +289,8 @@ def run_scraper(
     task_id: str,
     url: str,
     headless: bool = False,
+    all_in_one: bool = False,
+    batch_size: int = 10,
     item_delay: int = 2,
     page_load_timeout: int = 10,
     element_timeout: int = 10
@@ -297,6 +309,8 @@ def run_scraper(
             username,
             password,
             headless=headless,
+            all_in_one=all_in_one,
+            batch_size=batch_size,
             item_delay=item_delay,
             page_load_timeout=page_load_timeout,
             element_timeout=element_timeout
@@ -334,6 +348,126 @@ async def chrome_devtools():
     """Return 204 for Chrome DevTools request to avoid 404 logs."""
     from fastapi.responses import Response
     return Response(status_code=204)
+
+
+@app.delete("/api/thread/delete")
+async def delete_thread(delete_request: DeleteThreadRequest):
+    """Delete a thread (images folder, PDF, and database record)."""
+    try:
+        course_code = delete_request.course_code
+        thread_name = delete_request.thread_name
+        
+        print(f"Attempting to delete thread: {course_code}/{thread_name}")
+        
+        # Paths to delete
+        images_folder = os.path.join(
+            "archive", "images", course_code, thread_name
+        )
+        pdf_path = os.path.join(
+            "archive", "documents", course_code, f"{thread_name}.pdf"
+        )
+        
+        deleted_items = []
+        errors = []
+        
+        # Delete images folder with force deletion
+        if os.path.exists(images_folder):
+            try:
+                import time
+                import stat
+                
+                # Wait for file handles to close
+                time.sleep(0.5)
+                
+                # Force delete all files
+                for root, dirs, files in os.walk(images_folder, topdown=False):
+                    for name in files:
+                        file_path = os.path.join(root, name)
+                        try:
+                            os.chmod(file_path, stat.S_IWRITE)
+                            os.remove(file_path)
+                        except Exception as fe:
+                            print(f"Error deleting file {file_path}: {fe}")
+                    for name in dirs:
+                        dir_path = os.path.join(root, name)
+                        try:
+                            os.chmod(dir_path, stat.S_IWRITE)
+                            os.rmdir(dir_path)
+                        except Exception as de:
+                            print(f"Error deleting directory {dir_path}: {de}")
+                
+                # Remove main folder
+                os.rmdir(images_folder)
+                deleted_items.append("images folder")
+                print(f"Deleted images folder: {images_folder}")
+            except Exception as e:
+                errors.append(f"images folder: {str(e)}")
+                print(f"Error deleting images folder: {e}")
+        
+        # Delete PDF
+        if os.path.exists(pdf_path):
+            try:
+                os.remove(pdf_path)
+                deleted_items.append("PDF file")
+                print(f"Deleted PDF: {pdf_path}")
+            except Exception as e:
+                errors.append(f"PDF file: {str(e)}")
+                print(f"Error deleting PDF: {e}")
+        
+        # Delete from database
+        try:
+            if db.delete_thread(course_code, thread_name):
+                deleted_items.append("database record")
+                print(f"Deleted from database")
+            else:
+                errors.append("database record: not found")
+        except Exception as e:
+            errors.append(f"database: {str(e)}")
+            print(f"Error deleting from database: {e}")
+        
+        # Check if course folder is empty and delete it
+        course_images_folder = os.path.join("archive", "images", course_code)
+        if os.path.exists(course_images_folder):
+            if not os.listdir(course_images_folder):
+                try:
+                    os.rmdir(course_images_folder)
+                    deleted_items.append("empty course images folder")
+                except Exception as e:
+                    print(f"Could not delete course images folder: {e}")
+        
+        course_docs_folder = os.path.join("archive", "documents", course_code)
+        if os.path.exists(course_docs_folder):
+            if not os.listdir(course_docs_folder):
+                try:
+                    os.rmdir(course_docs_folder)
+                    deleted_items.append("empty course docs folder")
+                except Exception as e:
+                    print(f"Could not delete course docs folder: {e}")
+        
+        if errors:
+            # Return 200 but with success=false and details about what was deleted
+            return JSONResponse(content={
+                "success": False,
+                "error": f"Partial deletion. Errors: {', '.join(errors)}",
+                "deleted": deleted_items,
+                "errors": errors
+            }, status_code=200)
+        
+        return JSONResponse(content={
+            "success": True,
+            "message": f"Deleted: {', '.join(deleted_items)}",
+            "course_code": course_code,
+            "thread_name": thread_name
+        })
+        
+    except Exception as e:
+        import traceback
+        error_details = traceback.format_exc()
+        print(f"Error deleting thread: {error_details}")
+        raise HTTPException(
+            status_code=500,
+            detail=f"Error deleting thread: {str(e)}"
+        )
 
 
 if __name__ == "__main__":

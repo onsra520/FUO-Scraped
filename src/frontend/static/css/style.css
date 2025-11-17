@@ -618,6 +618,8 @@ input:focus + .slider {
 
 .modal-body {
     padding: var(--spacing-xl);
+    max-height: 60vh;
+    overflow-y: auto;
 }
 
 .modal-setting-item {

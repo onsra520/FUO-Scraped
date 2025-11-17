@@ -20,6 +20,8 @@ class FUOScraper:
         username: str,
         password: str,
         headless: bool = False,
+        all_in_one: bool = False,
+        batch_size: int = 10,
         item_delay: int = 2,
         page_load_timeout: int = 10,
         element_timeout: int = 10
@@ -28,6 +30,8 @@ class FUOScraper:
         self.password = password
         self.driver = None
         self.headless = headless
+        self.all_in_one = all_in_one
+        self.batch_size = batch_size
         self.item_delay = item_delay
         self.page_load_timeout = page_load_timeout
         self.element_timeout = element_timeout
@@ -177,31 +181,16 @@ class FUOScraper:
                 }
             
             # Download images
-            for idx, img_url in enumerate(img_urls, 1):
-                try:
-                    if progress_callback:
-                        progress_callback(idx, len(img_urls))
-                    
-                    # Open image in new tab
-                    self.driver.execute_script(f"window.open('{img_url}', '_blank');")
-                    time.sleep(self.item_delay)
-                    
-                    self.driver.switch_to.window(self.driver.window_handles[-1])
-                    
-                    # Save screenshot
-                    img_name = f"{idx}.png"
-                    img_path = os.path.join(images_folder, img_name)
-                    self.driver.save_screenshot(img_path)
-                    
-                    # Close tab and switch back
-                    self.driver.close()
-                    self.driver.switch_to.window(self.driver.window_handles[0])
-                    
-                    time.sleep(1)
-                    
-                except Exception as e:
-                    print(f"Error downloading image {idx}: {e}")
-                    continue
+            if self.all_in_one:
+                # All in One mode: batch download (10 images at a time)
+                self._download_images_batch(
+                    img_urls, images_folder, progress_callback
+                )
+            else:
+                # Original mode: download one by one
+                self._download_images_sequential(
+                    img_urls, images_folder, progress_callback
+                )
             
             # Create PDF
             pdf_path = self.create_pdf(images_folder, pdf_folder, full_name)
@@ -235,6 +224,108 @@ class FUOScraper:
             if self.driver:
                 self.driver.quit()
                 self.driver = None
+    
+    def _download_images_sequential(
+        self,
+        img_urls: List[str],
+        images_folder: str,
+        progress_callback
+    ):
+        """Download images one by one (original mode)."""
+        for idx, img_url in enumerate(img_urls, 1):
+            try:
+                if progress_callback:
+                    progress_callback(idx, len(img_urls))
+                
+                # Open image in new tab
+                self.driver.execute_script(
+                    f"window.open('{img_url}', '_blank');"
+                )
+                time.sleep(self.item_delay)
+                
+                self.driver.switch_to.window(self.driver.window_handles[-1])
+                
+                # Save screenshot
+                img_name = f"{idx}.png"
+                img_path = os.path.join(images_folder, img_name)
+                self.driver.save_screenshot(img_path)
+                
+                # Close tab and switch back
+                self.driver.close()
+                self.driver.switch_to.window(self.driver.window_handles[0])
+                
+                time.sleep(1)
+                
+            except Exception as e:
+                print(f"Error downloading image {idx}: {e}")
+                continue
+    
+    def _download_images_batch(
+        self,
+        img_urls: List[str],
+        images_folder: str,
+        progress_callback
+    ):
+        """Download images in batches (all in one mode)."""
+        batch_size = self.batch_size
+        total = len(img_urls)
+        
+        for batch_start in range(0, total, batch_size):
+            batch_end = min(batch_start + batch_size, total)
+            batch = img_urls[batch_start:batch_end]
+            
+            # Open all images in batch
+            for idx, img_url in enumerate(batch, start=batch_start + 1):
+                try:
+                    self.driver.execute_script(
+                        f"window.open('{img_url}', '_blank');"
+                    )
+                    time.sleep(0.5)  # Small delay between tabs
+                except Exception as e:
+                    print(f"Error opening image {idx}: {e}")
+            
+            # Wait for all tabs to load
+            time.sleep(self.item_delay)
+            
+            # Save screenshots from all tabs
+            main_window = self.driver.window_handles[0]
+            
+            # Process each image in the batch
+            for batch_idx, (img_idx, img_url) in enumerate(
+                zip(range(batch_start + 1, batch_end + 1), batch)
+            ):
+                try:
+                    if progress_callback:
+                        progress_callback(img_idx, total)
+                    
+                    # Switch to tab (batch_idx + 1 because main window is at 0)
+                    tab_position = batch_idx + 1
+                    if tab_position < len(self.driver.window_handles):
+                        self.driver.switch_to.window(
+                            self.driver.window_handles[tab_position]
+                        )
+                        
+                        # Wait a bit for image to fully load
+                        time.sleep(0.5)
+                        
+                        # Save screenshot
+                        img_name = f"{img_idx}.png"
+                        img_path = os.path.join(images_folder, img_name)
+                        self.driver.save_screenshot(img_path)
+                        print(f"Saved image {img_idx}/{total}")
+                        
+                except Exception as e:
+                    print(f"Error saving image {img_idx}: {e}")
+            
+            # Close all tabs except main window
+            self.driver.switch_to.window(main_window)
+            while len(self.driver.window_handles) > 1:
+                self.driver.switch_to.window(self.driver.window_handles[-1])
+                self.driver.close()
+            
+            # Switch back to main window
+            self.driver.switch_to.window(main_window)
+            time.sleep(1)
     
     def create_pdf(self, images_folder: str, pdf_folder: str, name: str) -> str:
         """Create PDF from images in the folder."""

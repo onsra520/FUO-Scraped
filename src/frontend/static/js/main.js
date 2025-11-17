@@ -108,6 +108,16 @@ function closeSettingsModal() {
     modal.style.display = 'none';
 }
 
+// Toggle batch size setting visibility
+function toggleBatchSize() {
+    const allInOneCheckbox = document.getElementById('allInOneMode');
+    const batchSizeSetting = document.getElementById('batchSizeSetting');
+    
+    if (allInOneCheckbox && batchSizeSetting) {
+        batchSizeSetting.style.display = allInOneCheckbox.checked ? 'flex' : 'none';
+    }
+}
+
 // Close modal on outside click
 window.addEventListener('click', (e) => {
     const modal = document.getElementById('settingsModal');
@@ -140,12 +150,14 @@ async function startScrape() {
         showStatus('info', 'Đang bắt đầu scrape...');
         
         const headless = headlessCheckbox ? headlessCheckbox.checked : false;
+        const allInOneMode = document.getElementById('allInOneMode')?.checked || false;
+        const batchSize = parseInt(document.getElementById('batchSize')?.value || '10');
         const itemDelay = parseInt(document.getElementById('itemDelay')?.value || '2');
         const pageLoadTimeout = parseInt(document.getElementById('pageLoadTimeout')?.value || '10');
         const elementTimeout = parseInt(document.getElementById('elementTimeout')?.value || '10');
         
         // Save settings to localStorage
-        saveSettings(headless, itemDelay, pageLoadTimeout, elementTimeout);
+        saveSettings(headless, allInOneMode, batchSize, itemDelay, pageLoadTimeout, elementTimeout);
         
         const response = await fetch('/api/scrape', {
             method: 'POST',
@@ -155,6 +167,8 @@ async function startScrape() {
             body: JSON.stringify({ 
                 url: url,
                 headless: headless,
+                all_in_one: allInOneMode,
+                batch_size: batchSize,
                 item_delay: itemDelay,
                 page_load_timeout: pageLoadTimeout,
                 element_timeout: elementTimeout
@@ -411,9 +425,11 @@ function setupViewToggle() {
 }
 
 // Save settings to localStorage
-function saveSettings(headless, itemDelay, pageLoadTimeout, elementTimeout) {
+function saveSettings(headless, allInOneMode, batchSize, itemDelay, pageLoadTimeout, elementTimeout) {
     const settings = {
         headless,
+        allInOneMode,
+        batchSize,
         itemDelay,
         pageLoadTimeout,
         elementTimeout
@@ -431,11 +447,18 @@ function loadSettings() {
             
             // Apply saved settings to UI
             const headlessCheckbox = document.getElementById('headlessMode');
+            const allInOneCheckbox = document.getElementById('allInOneMode');
+            const batchSizeInput = document.getElementById('batchSize');
             const itemDelayInput = document.getElementById('itemDelay');
             const pageLoadTimeoutInput = document.getElementById('pageLoadTimeout');
             const elementTimeoutInput = document.getElementById('elementTimeout');
             
             if (headlessCheckbox) headlessCheckbox.checked = settings.headless !== undefined ? settings.headless : true;
+            if (allInOneCheckbox) {
+                allInOneCheckbox.checked = settings.allInOneMode || false;
+                toggleBatchSize();
+            }
+            if (batchSizeInput) batchSizeInput.value = settings.batchSize || 10;
             if (itemDelayInput) itemDelayInput.value = settings.itemDelay || 2;
             if (pageLoadTimeoutInput) pageLoadTimeoutInput.value = settings.pageLoadTimeout || 5;
             if (elementTimeoutInput) elementTimeoutInput.value = settings.elementTimeout || 5;
@@ -445,11 +468,15 @@ function loadSettings() {
     } else {
         // Set defaults if no saved settings
         const headlessCheckbox = document.getElementById('headlessMode');
+        const allInOneCheckbox = document.getElementById('allInOneMode');
+        const batchSizeInput = document.getElementById('batchSize');
         const itemDelayInput = document.getElementById('itemDelay');
         const pageLoadTimeoutInput = document.getElementById('pageLoadTimeout');
         const elementTimeoutInput = document.getElementById('elementTimeout');
         
         if (headlessCheckbox) headlessCheckbox.checked = true;
+        if (allInOneCheckbox) allInOneCheckbox.checked = false;
+        if (batchSizeInput) batchSizeInput.value = 10;
         if (itemDelayInput) itemDelayInput.value = 2;
         if (pageLoadTimeoutInput) pageLoadTimeoutInput.value = 5;
         if (elementTimeoutInput) elementTimeoutInput.value = 5;
@@ -459,12 +486,16 @@ function loadSettings() {
 // Reset settings to default
 function resetSettings() {
     document.getElementById('headlessMode').checked = true;
+    document.getElementById('allInOneMode').checked = false;
+    document.getElementById('batchSize').value = 10;
     document.getElementById('itemDelay').value = 2;
     document.getElementById('pageLoadTimeout').value = 5;
     document.getElementById('elementTimeout').value = 5;
     
+    toggleBatchSize();
+    
     // Save defaults
-    saveSettings(true, 2, 5, 5);
+    saveSettings(true, false, 10, 2, 5, 5);
     
     showStatus('info', 'Đã reset về cài đặt mặc định');
 }
@@ -472,12 +503,14 @@ function resetSettings() {
 // Save settings and close modal
 function saveSettingsAndClose() {
     const headless = document.getElementById('headlessMode').checked;
+    const allInOneMode = document.getElementById('allInOneMode').checked;
+    const batchSize = parseInt(document.getElementById('batchSize').value);
     const itemDelay = parseInt(document.getElementById('itemDelay').value);
     const pageLoadTimeout = parseInt(document.getElementById('pageLoadTimeout').value);
     const elementTimeout = parseInt(document.getElementById('elementTimeout').value);
     
     // Save to localStorage
-    saveSettings(headless, itemDelay, pageLoadTimeout, elementTimeout);
+    saveSettings(headless, allInOneMode, batchSize, itemDelay, pageLoadTimeout, elementTimeout);
     
     // Show success message
     showStatus('success', 'Đã lưu cài đặt thành công!');
