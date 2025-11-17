@@ -1,0 +1,171 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>FUO Phake - Homepage</title>
+    <link rel="stylesheet" href="/static/css/style.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+</head>
+<body>
+    <!-- Navigation Bar -->
+    <nav class="navbar">
+        <div class="nav-container">
+            <div class="nav-brand">
+                <i class="fas fa-spider"></i>
+                <span>FUO Phake</span>
+            </div>
+            <div class="nav-search">
+                <div class="search-wrapper">
+                    <input 
+                        type="text" 
+                        id="searchInput" 
+                        placeholder="Tìm kiếm môn học..."
+                        autocomplete="off"
+                    >
+                    <i class="fas fa-search search-icon"></i>
+                    <div id="suggestions" class="suggestions-dropdown"></div>
+                </div>
+            </div>
+            <div class="nav-actions">
+                <button class="nav-button" onclick="refreshCourses()">
+                    <i class="fas fa-sync-alt"></i>
+                </button>
+                <button class="nav-button" onclick="toggleTheme()">
+                    <i class="fas fa-moon"></i>
+                </button>
+            </div>
+        </div>
+    </nav>
+
+    <!-- Main Content -->
+    <main class="main-content">
+        <!-- Scraper Section -->
+        <section class="scraper-section">
+            <div class="scraper-card">
+                <div class="scraper-header">
+                    <h2>
+                        <i class="fas fa-link"></i>
+                        Scrape New Thread
+                    </h2>
+                    <button class="header-settings-btn" onclick="openSettingsModal()" title="Settings">
+                        <i class="fas fa-cog"></i>
+                        <span>Settings</span>
+                    </button>
+                </div>
+                <p class="scraper-description">
+                    Input subject link from FuOverflow Community to start scraping images.
+                </p>
+                <div class="scraper-input-group">
+                    <input 
+                        type="text" 
+                        id="scrapeUrl" 
+                        placeholder="https://fuoverflow.com/threads/..."
+                        class="scraper-input"
+                    >
+                    <button id="scrapeButton" class="scraper-button" onclick="startScrape()">
+                        <i class="fas fa-download"></i>
+                        <span>Scrape</span>
+                    </button>
+                </div>
+                <div id="scrapeStatus" class="scrape-status"></div>
+                <div id="progressBar" class="progress-bar" style="display: none;">
+                    <div class="progress-fill"></div>
+                    <span class="progress-text">0%</span>
+                </div>
+            </div>
+        </section>
+
+        <!-- Courses Section -->
+        <section class="courses-section">
+            <div class="section-header">
+                <h2>
+                    <i class="fas fa-folder-open"></i>
+                    Subjects scraped
+                </h2>
+                <div class="view-toggle">
+                    <button class="toggle-btn active" data-view="grid">
+                        <i class="fas fa-th"></i>
+                    </button>
+                    <button class="toggle-btn" data-view="list">
+                        <i class="fas fa-list"></i>
+                    </button>
+                </div>
+            </div>
+            
+            <div id="coursesContainer" class="courses-grid">
+                <!-- Courses will be loaded here -->
+            </div>
+            
+            <div id="emptyState" class="empty-state" style="display: none;">
+                <i class="fas fa-folder-open"></i>
+                <h3>No data available</h3>
+                <p>Scrape the first thread to get started!</p>
+            </div>
+        </section>
+    </main>
+
+    <!-- Loading Overlay -->
+    <div id="loadingOverlay" class="loading-overlay" style="display: none;">
+        <div class="spinner"></div>
+        <p>Đang xử lý...</p>
+    </div>
+
+    <!-- Settings Modal -->
+    <div id="settingsModal" class="modal" style="display: none;">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3>
+                    <i class="fas fa-cog"></i>
+                    Scraper Settings
+                </h3>
+                <button class="modal-close" onclick="closeSettingsModal()">
+                    <i class="fas fa-times"></i>
+                </button>
+            </div>
+            <div class="modal-body">
+                <div class="modal-setting-item">
+                    <div class="setting-label">
+                        <strong>Headless Mode</strong>
+                        <small>Run browser in headless mode (faster, less resource usage)</small>
+                    </div>
+                    <label class="switch">
+                        <input type="checkbox" id="headlessMode">
+                        <span class="slider"></span>
+                    </label>
+                </div>
+                
+                <div class="modal-setting-item">
+                    <div class="setting-label">
+                        <strong>Item Delay (seconds)</strong>
+                        <small>Time to wait between each image</small>
+                    </div>
+                    <input type="number" id="itemDelay" class="setting-input" min="1" max="10" value="2">
+                </div>
+                
+                <div class="modal-setting-item">
+                    <div class="setting-label">
+                        <strong>Page Load Timeout (seconds)</strong>
+                        <small>Time to wait for page to load</small>
+                    </div>
+                    <input type="number" id="pageLoadTimeout" class="setting-input" min="5" max="30" value="10">
+                </div>
+                
+                <div class="modal-setting-item">
+                    <div class="setting-label">
+                        <strong>Element Timeout (seconds)</strong>
+                        <small>Time to wait for finding elements</small>
+                    </div>
+                    <input type="number" id="elementTimeout" class="setting-input" min="5" max="30" value="10">
+                </div>
+                
+                <button class="reset-settings-btn" onclick="resetSettings()">
+                    <i class="fas fa-undo"></i> Reset to Default
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <script src="/static/js/main.js"></script>
+</body>
+</html>
