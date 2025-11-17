@@ -329,6 +329,13 @@ async def favicon():
     return Response(status_code=204)
 
 
+@app.get("/.well-known/appspecific/com.chrome.devtools.json")
+async def chrome_devtools():
+    """Return 204 for Chrome DevTools request to avoid 404 logs."""
+    from fastapi.responses import Response
+    return Response(status_code=204)
+
+
 if __name__ == "__main__":
     import uvicorn
     uvicorn.run(app, host="0.0.0.0", port=8211)

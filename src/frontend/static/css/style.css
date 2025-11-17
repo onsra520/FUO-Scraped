@@ -1309,6 +1309,7 @@ input:focus + .slider {
     display: flex;
     align-items: center;
     justify-content: center;
+    z-index: 1;
 }
 
 .fullscreen-content.fullscreen-single {
@@ -1317,12 +1318,26 @@ input:focus + .slider {
     justify-content: center;
 }
 
+.fullscreen-content.fullscreen-single {
+    overflow: auto;
+}
+
 .fullscreen-content.fullscreen-single img {
     max-width: 95vw;
     max-height: 95vh;
     object-fit: contain;
     user-select: none;
     border-radius: var(--radius-sm);
+    transition: transform 0.2s ease;
+    cursor: zoom-in;
+}
+
+.fullscreen-content.fullscreen-single img.grabbing {
+    cursor: grabbing !important;
+}
+
+.fullscreen-content.fullscreen-single img.grab {
+    cursor: grab !important;
 }
 
 .fullscreen-content.fullscreen-scroll {
@@ -1339,6 +1354,14 @@ input:focus + .slider {
     border-radius: var(--radius-md);
     box-shadow: 0 8px 32px rgba(0, 0, 0, 0.5);
     user-select: none;
+}
+
+.fullscreen-scroll-image.grab {
+    cursor: grab !important;
+}
+
+.fullscreen-scroll-image.grabbing {
+    cursor: grabbing !important;
 }
 
 .fullscreen-close {
@@ -1358,6 +1381,7 @@ input:focus + .slider {
     justify-content: center;
     transition: all var(--transition-fast);
     backdrop-filter: blur(10px);
+    z-index: 10;
 }
 
 .fullscreen-close:hover {
@@ -1383,6 +1407,7 @@ input:focus + .slider {
     justify-content: center;
     transition: all var(--transition-fast);
     backdrop-filter: blur(10px);
+    z-index: 10;
 }
 
 .fullscreen-nav:hover {
@@ -1412,6 +1437,7 @@ input:focus + .slider {
     font-size: 1rem;
     backdrop-filter: blur(10px);
     border: 1px solid rgba(255, 255, 255, 0.2);
+    z-index: 10;
 }
 
 /* Custom scrollbar for fullscreen scroll mode */

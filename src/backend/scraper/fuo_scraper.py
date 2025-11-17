@@ -37,6 +37,10 @@ class FUOScraper:
         Extract course code and full name from thread URL.
         Example: https://fuoverflow.com/threads/jpd113-su25-b5-mc.4934/
         Returns: ('JPD113', 'JPD113_SU25_B5_MC')
+        Example: https://fuoverflow.com/threads/swe201c-su25-re.4845/
+        Returns: ('SWE201c', 'SWE201c_SU25_RE')
+        Example: https://fuoverflow.com/threads/mai391-fa25-fe.5252/
+        Returns: ('MAI391', 'MAI391_FA25_FE')
         """
         # Extract thread name from URL
         match = re.search(r'/threads/([^/]+)/', url)
@@ -50,8 +54,15 @@ class FUOScraper:
         # Convert to uppercase and replace hyphens with underscores
         full_name = thread_name.upper().replace('-', '_')
         
-        # Extract course code (first 6 characters)
-        course_code = full_name[:6]
+        # Extract course code using regex: letters followed by digits, optionally ending with a lowercase letter
+        # Pattern: 3+ uppercase letters, followed by 3+ digits, optionally followed by 1 lowercase letter
+        course_code_match = re.match(r'^([A-Z]{3,}\d{3,}[a-z]?)', full_name)
+        if course_code_match:
+            course_code = course_code_match.group(1)
+        else:
+            # Fallback: take everything before first underscore or first 6 characters
+            parts = full_name.split('_')
+            course_code = parts[0] if parts else full_name[:6]
         
         return course_code, full_name
     
@@ -178,7 +189,7 @@ class FUOScraper:
                     self.driver.switch_to.window(self.driver.window_handles[-1])
                     
                     # Save screenshot
-                    img_name = f"{idx}.jpg"
+                    img_name = f"{idx}.png"
                     img_path = os.path.join(images_folder, img_name)
                     self.driver.save_screenshot(img_path)
                     
@@ -231,7 +242,7 @@ class FUOScraper:
         
         # Get all image files
         image_files = sorted(
-            [f for f in os.listdir(images_folder) if f.endswith('.jpg')],
+            [f for f in os.listdir(images_folder) if f.endswith(('.jpg', '.png'))],
             key=lambda x: int(x.split('.')[0])
         )
         

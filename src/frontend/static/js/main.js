@@ -165,7 +165,10 @@ async function startScrape() {
         
         if (data.success) {
             scrapingTaskId = data.task_id;
-            progressBar.style.display = 'block';
+            const progressBarContainer = document.getElementById('progressBarContainer');
+            if (progressBarContainer) {
+                progressBarContainer.style.display = 'block';
+            }
             showStatus('info', 'Đang scrape... Vui lòng chờ.');
             
             // Start polling for progress
@@ -203,13 +206,19 @@ async function checkScrapingProgress() {
                 // Reload courses
                 setTimeout(() => {
                     loadCourses();
-                    document.getElementById('progressBar').style.display = 'none';
+                    const progressBarContainer = document.getElementById('progressBarContainer');
+                    if (progressBarContainer) {
+                        progressBarContainer.style.display = 'none';
+                    }
                 }, 2000);
             } else if (task.status === 'error') {
                 clearInterval(scrapingInterval);
                 showStatus('error', 'Lỗi: ' + task.error);
                 document.getElementById('scrapeButton').disabled = false;
-                document.getElementById('progressBar').style.display = 'none';
+                const progressBarContainer = document.getElementById('progressBarContainer');
+                if (progressBarContainer) {
+                    progressBarContainer.style.display = 'none';
+                }
             }
         }
     } catch (error) {
@@ -219,8 +228,14 @@ async function checkScrapingProgress() {
 
 // Update progress bar with segments
 function updateProgress(current, total) {
-    const progressBar = document.querySelector('.progress-bar');
-    const progressText = document.querySelector('.progress-text');
+    const progressBarContainer = document.getElementById('progressBarContainer');
+    const progressBar = document.getElementById('progressBar');
+    const progressText = progressBarContainer?.querySelector('.progress-text');
+    
+    if (!progressBar || !progressText) {
+        console.error('Progress elements not found');
+        return;
+    }
     
     // Create segments if not already created
     if (!progressBar.querySelector('.progress-segment')) {
@@ -420,25 +435,53 @@ function loadSettings() {
             const pageLoadTimeoutInput = document.getElementById('pageLoadTimeout');
             const elementTimeoutInput = document.getElementById('elementTimeout');
             
-            if (headlessCheckbox) headlessCheckbox.checked = settings.headless || false;
+            if (headlessCheckbox) headlessCheckbox.checked = settings.headless !== undefined ? settings.headless : true;
             if (itemDelayInput) itemDelayInput.value = settings.itemDelay || 2;
-            if (pageLoadTimeoutInput) pageLoadTimeoutInput.value = settings.pageLoadTimeout || 10;
-            if (elementTimeoutInput) elementTimeoutInput.value = settings.elementTimeout || 10;
+            if (pageLoadTimeoutInput) pageLoadTimeoutInput.value = settings.pageLoadTimeout || 5;
+            if (elementTimeoutInput) elementTimeoutInput.value = settings.elementTimeout || 5;
         } catch (e) {
             console.error('Error loading settings:', e);
         }
+    } else {
+        // Set defaults if no saved settings
+        const headlessCheckbox = document.getElementById('headlessMode');
+        const itemDelayInput = document.getElementById('itemDelay');
+        const pageLoadTimeoutInput = document.getElementById('pageLoadTimeout');
+        const elementTimeoutInput = document.getElementById('elementTimeout');
+        
+        if (headlessCheckbox) headlessCheckbox.checked = true;
+        if (itemDelayInput) itemDelayInput.value = 2;
+        if (pageLoadTimeoutInput) pageLoadTimeoutInput.value = 5;
+        if (elementTimeoutInput) elementTimeoutInput.value = 5;
     }
 }
 
 // Reset settings to default
 function resetSettings() {
-    document.getElementById('headlessMode').checked = false;
+    document.getElementById('headlessMode').checked = true;
     document.getElementById('itemDelay').value = 2;
-    document.getElementById('pageLoadTimeout').value = 10;
-    document.getElementById('elementTimeout').value = 10;
+    document.getElementById('pageLoadTimeout').value = 5;
+    document.getElementById('elementTimeout').value = 5;
     
     // Save defaults
-    saveSettings(false, 2, 10, 10);
+    saveSettings(true, 2, 5, 5);
     
     showStatus('info', 'Đã reset về cài đặt mặc định');
+}
+
+// Save settings and close modal
+function saveSettingsAndClose() {
+    const headless = document.getElementById('headlessMode').checked;
+    const itemDelay = parseInt(document.getElementById('itemDelay').value);
+    const pageLoadTimeout = parseInt(document.getElementById('pageLoadTimeout').value);
+    const elementTimeout = parseInt(document.getElementById('elementTimeout').value);
+    
+    // Save to localStorage
+    saveSettings(headless, itemDelay, pageLoadTimeout, elementTimeout);
+    
+    // Show success message
+    showStatus('success', 'Đã lưu cài đặt thành công!');
+    
+    // Close modal
+    closeSettingsModal();
 }

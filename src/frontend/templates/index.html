@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>FUO Phake - Homepage</title>
     <link rel="stylesheet" href="/static/css/style.css">
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@fortawesome/fontawesome-free@6.4.0/css/all.min.css">
 </head>
 <body>
     <!-- Navigation Bar -->
@@ -69,9 +69,9 @@
                     </button>
                 </div>
                 <div id="scrapeStatus" class="scrape-status"></div>
-                <div id="progressBar" class="progress-bar" style="display: none;">
-                    <div class="progress-fill"></div>
-                    <span class="progress-text">0%</span>
+                <div id="progressBarContainer" style="display: none;">
+                    <div id="progressBar" class="progress-bar"></div>
+                    <div class="progress-text">0%</div>
                 </div>
             </div>
         </section>
@@ -158,6 +158,10 @@
                     </div>
                     <input type="number" id="elementTimeout" class="setting-input" min="5" max="30" value="10">
                 </div>
+                
+                <button class="reset-settings-btn" onclick="saveSettingsAndClose()" style="background: var(--accent-secondary); color: white; margin-bottom: var(--spacing-sm);">
+                    <i class="fas fa-save"></i> Save Settings
+                </button>
                 
                 <button class="reset-settings-btn" onclick="resetSettings()">
                     <i class="fas fa-undo"></i> Reset to Default

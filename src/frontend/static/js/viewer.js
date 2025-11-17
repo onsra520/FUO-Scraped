@@ -16,6 +16,23 @@ document.addEventListener('DOMContentLoaded', () => {
 let currentLayout = 'one-by-one';
 let slideshowInterval = null;
 
+// Zoom functionality for fullscreen
+let currentZoom = 1;
+const zoomStep = 0.3;
+const minZoom = 1;
+const maxZoom = 5;
+
+// Pan functionality for fullscreen
+let isPanning = false;
+let startX = 0;
+let startY = 0;
+let translateX = 0;
+let translateY = 0;
+
+// Scroll mode zoom sync
+let scrollModeZoom = 1;
+let scrollImageTransforms = new Map(); // Store individual image transforms
+
 // Switch between layout modes
 function switchLayoutMode(layout) {
     currentLayout = layout;
@@ -437,14 +454,35 @@ function openFullscreenScrollMode(overlay, fullscreenContent, prevBtn, nextBtn, 
     scrollContainer.style.paddingTop = '100px';
     scrollContainer.style.paddingBottom = '40px';
     
-    // Add all images to the wrapper
+    // Reset zoom and pan for scroll mode
+    scrollModeZoom = 1;
+    scrollImageTransforms.clear();
+    
+    // Add all images to the wrapper with zoom functionality
     images.forEach((imgSrc, index) => {
         const img = document.createElement('img');
         img.src = imgSrc;
         img.alt = `Image ${index + 1}`;
         img.className = 'fullscreen-scroll-image';
+        img.dataset.imageIndex = index;
+        img.style.cursor = 'zoom-in';
+        img.style.transition = 'transform 0.2s ease';
+        img.style.transform = 'translate(0px, 0px) scale(1)';
+        
+        // Initialize transform for this image
+        scrollImageTransforms.set(index, { x: 0, y: 0 });
+        
+        // Add zoom and reset event listeners for each image
+        img.addEventListener('click', handleScrollImageZoomIn);
+        img.addEventListener('contextmenu', handleScrollImageZoomOut);
+        img.addEventListener('mousedown', handleScrollImageMouseDown);
+        
         scrollContainer.appendChild(img);
     });
+    
+    // Add global mouse event listeners for panning
+    document.addEventListener('mousemove', handleScrollImagePanMove);
+    document.addEventListener('mouseup', handleScrollImagePanEnd);
     
     // Add wrapper to content
     fullscreenContent.appendChild(scrollContainer);
@@ -481,6 +519,23 @@ function openFullscreenSingleMode(overlay, fullscreenContent, prevBtn, nextBtn, 
     img.alt = 'Fullscreen Image';
     fullscreenContent.appendChild(img);
     
+    // Reset zoom and pan
+    currentZoom = 1;
+    translateX = 0;
+    translateY = 0;
+    img.style.transform = `translate(${translateX}px, ${translateY}px) scale(${currentZoom})`;
+    img.style.cursor = 'zoom-in';
+    
+    // Add zoom event listeners
+    img.addEventListener('click', handleFullscreenZoomIn);
+    img.addEventListener('contextmenu', handleFullscreenZoomOut);
+    img.addEventListener('mousedown', handleFullscreenReset);
+    
+    // Add pan event listeners
+    img.addEventListener('mousedown', handlePanStart);
+    document.addEventListener('mousemove', handlePanMove);
+    document.addEventListener('mouseup', handlePanEnd);
+    
     // Show navigation buttons and counter
     prevBtn.style.display = 'flex';
     nextBtn.style.display = 'flex';
@@ -495,6 +550,25 @@ function openFullscreenSingleMode(overlay, fullscreenContent, prevBtn, nextBtn, 
 function closeImageFullscreen() {
     const overlay = document.getElementById('fullscreenOverlay');
     overlay.style.display = 'none';
+    
+    // Clean up event listeners for single image mode
+    const img = document.getElementById('fullscreenImage');
+    if (img) {
+        img.removeEventListener('mousedown', handlePanStart);
+    }
+    document.removeEventListener('mousemove', handlePanMove);
+    document.removeEventListener('mouseup', handlePanEnd);
+    
+    // Clean up event listeners for scroll mode
+    document.removeEventListener('mousemove', handleScrollImagePanMove);
+    document.removeEventListener('mouseup', handleScrollImagePanEnd);
+    
+    // Reset pan state
+    isPanning = false;
+    translateX = 0;
+    translateY = 0;
+    scrollModeZoom = 1;
+    scrollImageTransforms.clear();
 }
 
 function fullscreenPrevImage() {
@@ -502,6 +576,14 @@ function fullscreenPrevImage() {
         currentIndex--;
         const fullscreenImg = document.getElementById('fullscreenImage');
         fullscreenImg.src = images[currentIndex];
+        
+        // Reset zoom and pan when changing images
+        currentZoom = 1;
+        translateX = 0;
+        translateY = 0;
+        fullscreenImg.style.transform = `translate(${translateX}px, ${translateY}px) scale(${currentZoom})`;
+        fullscreenImg.style.cursor = 'zoom-in';
+        
         updateFullscreenCounter();
         updateFullscreenNavButtons();
         
@@ -522,6 +604,14 @@ function fullscreenNextImage() {
         currentIndex++;
         const fullscreenImg = document.getElementById('fullscreenImage');
         fullscreenImg.src = images[currentIndex];
+        
+        // Reset zoom and pan when changing images
+        currentZoom = 1;
+        translateX = 0;
+        translateY = 0;
+        fullscreenImg.style.transform = `translate(${translateX}px, ${translateY}px) scale(${currentZoom})`;
+        fullscreenImg.style.cursor = 'zoom-in';
+        
         updateFullscreenCounter();
         updateFullscreenNavButtons();
         
@@ -569,6 +659,304 @@ function updateFullscreenNavButtons() {
         }
     }
 }
+
+// Zoom in on left click
+function handleFullscreenZoomIn(e) {
+    // Don't zoom if Ctrl is pressed (for panning)
+    if (e.ctrlKey) return;
+    
+    e.preventDefault();
+    const img = e.target;
+    if (!img) return;
+    
+    if (currentZoom < maxZoom) {
+        currentZoom = Math.min(currentZoom + zoomStep, maxZoom);
+        img.style.transform = `translate(${translateX}px, ${translateY}px) scale(${currentZoom})`;
+        img.style.transition = 'transform 0.2s ease';
+    }
+    
+    updateCursor(img);
+}
+
+// Zoom out on right click
+function handleFullscreenZoomOut(e) {
+    e.preventDefault();
+    const img = e.target;
+    if (!img) return;
+    
+    if (currentZoom > minZoom) {
+        currentZoom = Math.max(currentZoom - zoomStep, minZoom);
+        img.style.transform = `translate(${translateX}px, ${translateY}px) scale(${currentZoom})`;
+        img.style.transition = 'transform 0.2s ease';
+    }
+    
+    updateCursor(img);
+}
+
+// Reset zoom and position on middle click
+function handleFullscreenReset(e) {
+    // Middle mouse button
+    if (e.button !== 1) return;
+    
+    e.preventDefault();
+    const img = e.target;
+    if (!img) return;
+    
+    // Reset zoom and pan
+    currentZoom = 1;
+    translateX = 0;
+    translateY = 0;
+    img.style.transform = `translate(${translateX}px, ${translateY}px) scale(${currentZoom})`;
+    img.style.transition = 'transform 0.3s ease';
+    
+    updateCursor(img);
+}
+
+// Update cursor based on state
+function updateCursor(img) {
+    if (!img) {
+        img = document.getElementById('fullscreenImage');
+    }
+    if (!img) return;
+    
+    // Remove all cursor classes
+    img.classList.remove('grab', 'grabbing');
+    
+    if (currentZoom >= maxZoom) {
+        img.style.cursor = 'zoom-out';
+    } else if (currentZoom <= minZoom) {
+        img.style.cursor = 'zoom-in';
+    } else {
+        img.style.cursor = 'zoom-in';
+    }
+}
+
+// Pan start - when Ctrl + mouse down
+function handlePanStart(e) {
+    if (!e.ctrlKey) return;
+    
+    e.preventDefault();
+    isPanning = true;
+    startX = e.clientX - translateX;
+    startY = e.clientY - translateY;
+    
+    const img = document.getElementById('fullscreenImage');
+    if (img) {
+        img.classList.remove('grab');
+        img.classList.add('grabbing');
+        img.style.transition = 'none';
+    }
+}
+
+// Pan move - dragging with Ctrl held
+function handlePanMove(e) {
+    if (!isPanning) return;
+    
+    e.preventDefault();
+    translateX = e.clientX - startX;
+    translateY = e.clientY - startY;
+    
+    const img = document.getElementById('fullscreenImage');
+    if (img) {
+        img.style.transform = `translate(${translateX}px, ${translateY}px) scale(${currentZoom})`;
+    }
+}
+
+// Pan end - release mouse
+function handlePanEnd(e) {
+    if (!isPanning) return;
+    
+    isPanning = false;
+    const img = document.getElementById('fullscreenImage');
+    if (img) {
+        img.classList.remove('grabbing');
+        // Check if Ctrl is still held
+        if (e.ctrlKey) {
+            img.classList.add('grab');
+        } else {
+            updateCursor();
+        }
+    }
+}
+
+// Update cursor when Ctrl key state changes
+document.addEventListener('keydown', (e) => {
+    if (e.key === 'Control') {
+        const img = document.getElementById('fullscreenImage');
+        const overlay = document.getElementById('fullscreenOverlay');
+        if (img && overlay && overlay.style.display === 'flex' && !isPanning) {
+            img.classList.add('grab');
+        }
+    }
+});
+
+document.addEventListener('keyup', (e) => {
+    if (e.key === 'Control') {
+        const img = document.getElementById('fullscreenImage');
+        const overlay = document.getElementById('fullscreenOverlay');
+        if (img && overlay && overlay.style.display === 'flex' && !isPanning) {
+            img.classList.remove('grab', 'grabbing');
+            updateCursor();
+        }
+    }
+});
+
+// Zoom in for scroll mode images (synchronized)
+function handleScrollImageZoomIn(e) {
+    if (e.ctrlKey) return;
+    
+    e.preventDefault();
+    e.stopPropagation();
+    
+    if (scrollModeZoom < maxZoom) {
+        scrollModeZoom = Math.min(scrollModeZoom + zoomStep, maxZoom);
+        updateAllScrollImages();
+    }
+}
+
+// Zoom out for scroll mode images (synchronized)
+function handleScrollImageZoomOut(e) {
+    e.preventDefault();
+    e.stopPropagation();
+    
+    if (scrollModeZoom > minZoom) {
+        scrollModeZoom = Math.max(scrollModeZoom - zoomStep, minZoom);
+        updateAllScrollImages();
+    }
+}
+
+// Handle mouse down on scroll images (for panning and reset)
+function handleScrollImageMouseDown(e) {
+    // Middle click - reset
+    if (e.button === 1) {
+        e.preventDefault();
+        e.stopPropagation();
+        
+        // Reset all images
+        scrollModeZoom = 1;
+        scrollImageTransforms.forEach((_, index) => {
+            scrollImageTransforms.set(index, { x: 0, y: 0 });
+        });
+        updateAllScrollImages();
+        return;
+    }
+    
+    // Left click with Ctrl - start panning
+    if (e.button === 0 && e.ctrlKey) {
+        e.preventDefault();
+        e.stopPropagation();
+        
+        const img = e.target;
+        const index = parseInt(img.dataset.imageIndex);
+        const transform = scrollImageTransforms.get(index) || { x: 0, y: 0 };
+        
+        isPanning = true;
+        startX = e.clientX - transform.x;
+        startY = e.clientY - transform.y;
+        
+        // Store which image we're panning
+        img.dataset.panning = 'true';
+        img.classList.add('grabbing');
+        img.style.transition = 'none';
+    }
+}
+
+// Pan move for scroll images
+function handleScrollImagePanMove(e) {
+    if (!isPanning) return;
+    
+    e.preventDefault();
+    
+    const panningImg = document.querySelector('.fullscreen-scroll-image[data-panning="true"]');
+    if (!panningImg) return;
+    
+    const index = parseInt(panningImg.dataset.imageIndex);
+    const newX = e.clientX - startX;
+    const newY = e.clientY - startY;
+    
+    scrollImageTransforms.set(index, { x: newX, y: newY });
+    panningImg.style.transform = `translate(${newX}px, ${newY}px) scale(${scrollModeZoom})`;
+}
+
+// Pan end for scroll images
+function handleScrollImagePanEnd(e) {
+    if (!isPanning) return;
+    
+    isPanning = false;
+    
+    const panningImg = document.querySelector('.fullscreen-scroll-image[data-panning="true"]');
+    if (panningImg) {
+        panningImg.dataset.panning = 'false';
+        panningImg.classList.remove('grabbing');
+        
+        // Check if Ctrl is still held
+        if (e.ctrlKey) {
+            panningImg.classList.add('grab');
+        } else {
+            panningImg.classList.remove('grab');
+            updateScrollImageCursor(panningImg);
+        }
+    }
+}
+
+// Update all scroll mode images with current zoom and their individual transforms
+function updateAllScrollImages() {
+    const scrollImages = document.querySelectorAll('.fullscreen-scroll-image');
+    scrollImages.forEach(img => {
+        const index = parseInt(img.dataset.imageIndex);
+        const transform = scrollImageTransforms.get(index) || { x: 0, y: 0 };
+        
+        img.style.transform = `translate(${transform.x}px, ${transform.y}px) scale(${scrollModeZoom})`;
+        updateScrollImageCursor(img);
+    });
+}
+
+// Update cursor for scroll image
+function updateScrollImageCursor(img) {
+    if (scrollModeZoom >= maxZoom) {
+        img.style.cursor = 'zoom-out';
+    } else if (scrollModeZoom <= minZoom) {
+        img.style.cursor = 'zoom-in';
+    } else {
+        img.style.cursor = 'zoom-in';
+    }
+}
+
+// Update cursor when Ctrl key state changes for scroll images
+document.addEventListener('keydown', (e) => {
+    if (e.key === 'Control') {
+        const overlay = document.getElementById('fullscreenOverlay');
+        const fullscreenContent = document.getElementById('fullscreenContent');
+        
+        if (overlay && overlay.style.display === 'flex' && 
+            fullscreenContent && fullscreenContent.classList.contains('fullscreen-scroll')) {
+            const scrollImages = document.querySelectorAll('.fullscreen-scroll-image');
+            scrollImages.forEach(img => {
+                if (!isPanning) {
+                    img.classList.add('grab');
+                }
+            });
+        }
+    }
+});
+
+document.addEventListener('keyup', (e) => {
+    if (e.key === 'Control') {
+        const overlay = document.getElementById('fullscreenOverlay');
+        const fullscreenContent = document.getElementById('fullscreenContent');
+        
+        if (overlay && overlay.style.display === 'flex' && 
+            fullscreenContent && fullscreenContent.classList.contains('fullscreen-scroll')) {
+            const scrollImages = document.querySelectorAll('.fullscreen-scroll-image');
+            scrollImages.forEach(img => {
+                if (!isPanning) {
+                    img.classList.remove('grab', 'grabbing');
+                    updateScrollImageCursor(img);
+                }
+            });
+        }
+    }
+});
 
 // Close fullscreen with ESC key
 document.addEventListener('keydown', (e) => {
