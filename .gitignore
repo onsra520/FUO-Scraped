@@ -160,5 +160,4 @@ cython_debug/
 #.idea/
 
 archive
-fuo_scraped.db
 src/backend/database/fuo_scraped.db
